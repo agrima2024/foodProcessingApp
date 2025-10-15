@@ -1,53 +1,58 @@
-// js/main.js (Final Debugging Version)
+// js/main.js (Using Zxing-js Library)
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Page loaded. App is starting with new scanner.");
+    console.log("Page loaded. Initializing Zxing-js Scanner.");
 
     const resultsUi = document.getElementById('results-ui');
     const productNameEl = document.getElementById('product-name');
     const scoreDisplayEl = document.getElementById('score-display');
     const ingredientsTextEl = document.getElementById('ingredients-text');
     const scannerContainer = document.getElementById('scanner-container');
+    const videoElement = document.getElementById('video-element');
 
-    const onScanSuccess = (decodedText, decodedResult) => {
-        console.log(`Scan successful! Barcode: ${decodedText}`);
-        
-        html5QrcodeScanner.clear().then(_ => {
-            console.log("Scanner cleared.");
-            fetchProductData(decodedText);
-        }).catch(error => {
-            console.error("Failed to clear scanner.", error);
-        });
-    };
-    
-    const onScanFailure = (error) => {
-        // This is ignored with the verbose setting
-    };
-    
-    // --- NEW: Define the formats we want to scan for ---
-    const formatsToSupport = [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-    ];
+    // Create a new barcode reader instance
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    console.log('ZXing code reader initialized');
 
-    // Create the scanner with the NEW configuration
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-        "scanner-container",
-        { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            // --- NEW: Add the formats configuration here ---
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            formatsToSupport: formatsToSupport
-        },
-        /* verbose= */ true
-    );
-    
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    // Start scanning when the page loads
+    startScanning();
 
+    function startScanning() {
+        // Find the rear camera
+        codeReader.listVideoInputDevices()
+            .then((videoInputDevices) => {
+                // Use the last camera in the list (usually the rear one on a phone)
+                const selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
+                
+                console.log(`Starting scan with device: ${selectedDeviceId}`);
+                
+                // Start decoding from the camera
+                codeReader.decodeFromVideoDevice(selectedDeviceId, 'video-element', (result, err) => {
+                    // This function is called for every frame
+                    if (result) {
+                        // A barcode was successfully found!
+                        console.log(`Scan successful! Barcode: ${result.text}`);
+                        
+                        // Stop the scanner
+                        codeReader.reset();
+                        
+                        // Hide the scanner and fetch data
+                        scannerContainer.classList.add('hidden');
+                        fetchProductData(result.text);
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error('ZXing decoding error:', err);
+                    }
+                });
+            })
+            .catch((err) => {
+                console.error('Error listing video devices:', err);
+                alert('Could not start the camera. Please grant permission and refresh.');
+            });
+    }
+
+    // This function fetches data from Open Food Facts (this part is the same as before)
     const fetchProductData = (barcode) => {
-        // This function remains the same
         const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}`;
         console.log(`Fetching data from: ${apiUrl}`);
         
@@ -60,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     scoreDisplayEl.textContent = product.nova_group || '?';
                     ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
 
-                    scannerContainer.classList.add('hidden');
                     resultsUi.classList.remove('hidden');
                 } else {
                     alert(`Product not found for barcode: ${barcode}`);

@@ -5,26 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Scanner</title>
     <link rel="stylesheet" href="css/style.css">
+    
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/zxing.min.js"></script>
 </head>
 <body>
-
     <div id="app-container">
         <header>
             <h1>Food Scanner</h1>
         </header>
         <main>
-             <div id="scanner-container"></div>
+            <div id="scanner-container">
+                <video id="video-element"></video>
+            </div>
 
             <div id="results-ui" class="hidden">
                 <h2 id="product-name">Product Name Here</h2>
                 <div id="score-display">89%</div>
                 <p id="ingredients-text">Ingredients will be listed here...</p>
             </div>
-    </main>
-
-    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+        </main>
+    </div>
     
     <script src="js/main.js"></script>
-
 </body>
 </html>
