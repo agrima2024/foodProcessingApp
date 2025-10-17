@@ -8,6 +8,7 @@ function startApp() {
     const scoreDisplayEl = document.getElementById('score-display');
     const ingredientsTextEl = document.getElementById('ingredients-text');
     const scannerContainer = document.getElementById('scanner-container');
+    const loadingMessage = document.getElementById('loading-message');
 
     // This is the correct way to initialize the reader for a browser environment.
     const codeReader = new ZXing.BrowserMultiFormatReader();
@@ -20,6 +21,10 @@ function startApp() {
                 // Use the rear camera if available.
                 const selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
                 console.log(`Starting scan with device: ${selectedDeviceId}`);
+
+                // Hide the loading message and show the scanner.
+                loadingMessage.classList.add('hidden');
+                scannerContainer.classList.remove('hidden');
                 
                 // Start decoding from the video device.
                 codeReader.decodeFromVideoDevice(selectedDeviceId, 'video-element', (result, err) => {
@@ -33,17 +38,16 @@ function startApp() {
                 });
             } else {
                 console.error("No video input devices found.");
-                alert("No camera found on this device.");
+                loadingMessage.textContent = "No camera found on this device.";
             }
         })
         .catch((err) => {
             console.error('Error initializing camera:', err);
-            alert('Could not start camera. Please grant permission and refresh.');
+            loadingMessage.textContent = 'Could not start camera. Please grant permission and refresh.';
         });
 }
 
 // This function acts as a gatekeeper. It checks if the ZXing library is loaded.
-// If it's not ready, it waits 100 milliseconds and checks again.
 function initialize() {
     if (typeof ZXing === 'undefined') {
         console.log('Waiting for ZXing library to load...');
@@ -58,7 +62,7 @@ function initialize() {
 initialize();
 
 
-// This function fetches data from Open Food Facts (this part is unchanged).
+// This function fetches data from Open Food Facts.
 const fetchProductData = (barcode) => {
     const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}`;
     console.log(`Fetching data from: ${apiUrl}`);

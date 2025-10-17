@@ -6,7 +6,7 @@
     <title>Food Scanner</title>
     <link rel="stylesheet" href="css/style.css">
     
-    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/zxing.min.js" defer></script>
+    <script type="text/javascript" src="js/zxing.min.js" defer></script>
     
     <script src="js/main.js" defer></script>
 </head>
@@ -16,7 +16,11 @@
             <h1>Food Scanner</h1>
         </header>
         <main>
-            <div id="scanner-container">
+            <div id="loading-message">
+                <p>Starting camera...</p>
+            </div>
+
+            <div id="scanner-container" class="hidden">
                 <video id="video-element"></video>
             </div>
 
