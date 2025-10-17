@@ -6,8 +6,8 @@
     <title>Food Scanner</title>
     <link rel="stylesheet" href="css/style.css">
     
-    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/zxing.min.js"></script>
-
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/zxing.min.js" defer></script>
+    
     <script src="js/main.js" defer></script>
 </head>
 <body>
@@ -22,12 +22,10 @@
 
             <div id="results-ui" class="hidden">
                 <h2 id="product-name">Product Name Here</h2>
-                <div id="score-display">89%</div>
+                <div id="score-display">?</div>
                 <p id="ingredients-text">Ingredients will be listed here...</p>
             </div>
         </main>
     </div>
-    
-    <script src="js/main.js"></script>
 </body>
 </html>
