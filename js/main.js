@@ -1,8 +1,8 @@
-// This is the main function that will run our app's logic.
-function startApp() {
-    console.log("ZXing library is ready. Initializing the scanner.");
+// Wait for the entire page, including external scripts, to load.
+window.addEventListener('load', function () {
+    console.log("Window fully loaded. Initializing the scanner application.");
 
-    // Get references to our HTML elements.
+    // Get references to all necessary HTML elements.
     const resultsUi = document.getElementById('results-ui');
     const productNameEl = document.getElementById('product-name');
     const scoreDisplayEl = document.getElementById('score-display');
@@ -10,30 +10,30 @@ function startApp() {
     const scannerContainer = document.getElementById('scanner-container');
     const loadingMessage = document.getElementById('loading-message');
 
-    // This is the correct way to initialize the reader for a browser environment.
+    // Initialize the barcode reader.
     const codeReader = new ZXing.BrowserMultiFormatReader();
-    console.log('ZXing code reader initialized successfully.');
+    console.log('ZXing code reader has been initialized.');
 
-    // Start looking for a camera.
+    // Start the process of finding and using the camera.
     codeReader.listVideoInputDevices()
         .then((videoInputDevices) => {
             if (videoInputDevices.length > 0) {
-                // Use the rear camera if available.
+                // Choose the rear camera if available.
                 const selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
-                console.log(`Starting scan with device: ${selectedDeviceId}`);
+                console.log(`Starting scan with camera: ${selectedDeviceId}`);
 
-                // Hide the loading message and show the scanner.
+                // Hide the loading message and show the scanner view.
                 loadingMessage.classList.add('hidden');
                 scannerContainer.classList.remove('hidden');
-                
-                // Start decoding from the video device.
+
+                // Start decoding from the camera.
                 codeReader.decodeFromVideoDevice(selectedDeviceId, 'video-element', (result, err) => {
                     if (result) {
-                        // A barcode was found!
+                        // A barcode was successfully decoded.
                         console.log(`Scan successful! Barcode: ${result.text}`);
                         codeReader.reset(); // Stop the camera.
                         scannerContainer.classList.add('hidden');
-                        fetchProductData(result.text);
+                        fetchProductData(result.text); // Fetch the product info.
                     }
                 });
             } else {
@@ -45,36 +45,22 @@ function startApp() {
             console.error('Error initializing camera:', err);
             loadingMessage.textContent = 'Could not start camera. Please grant permission and refresh.';
         });
-}
+});
 
-// This function acts as a gatekeeper. It checks if the ZXing library is loaded.
-function initialize() {
-    if (typeof ZXing === 'undefined') {
-        console.log('Waiting for ZXing library to load...');
-        setTimeout(initialize, 100);
-    } else {
-        // The library is ready, so we can start our app.
-        startApp();
-    }
-}
-
-// Start the whole process.
-initialize();
-
-
-// This function fetches data from Open Food Facts.
-const fetchProductData = (barcode) => {
+// This function fetches data from the Open Food Facts API.
+function fetchProductData(barcode) {
     const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}`;
     console.log(`Fetching data from: ${apiUrl}`);
-    
+
     fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
             if (data.status === 1 && data.product) {
                 const product = data.product;
-                productNameEl.textContent = product.product_name || 'Name not found';
-                scoreDisplayEl.textContent = product.nova_group || '?';
-                ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
+                const resultsUi = document.getElementById('results-ui');
+                document.getElementById('product-name').textContent = product.product_name || 'Name not found';
+                document.getElementById('score-display').textContent = product.nova_group || '?';
+                document.getElementById('ingredients-text').textContent = product.ingredients_text || 'Ingredients not available.';
                 resultsUi.classList.remove('hidden');
             } else {
                 alert(`Product not found for barcode: ${barcode}. Please try another product.`);
@@ -84,4 +70,4 @@ const fetchProductData = (barcode) => {
             console.error('Fetch error:', error);
             alert('Could not connect to the database.');
         });
-};
+}
