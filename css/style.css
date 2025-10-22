@@ -57,13 +57,21 @@ main {
     border: 5px solid #eee;
     border-radius: 8px;
     overflow: hidden;
+    position: relative; /* This is important for Quagga */
 }
 
-/* Style the video element to fill its container */
-#video-element {
+/* Quagga will create video and canvas elements, this targets them */
+#scanner-container video, #scanner-container canvas {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Ensures video covers the area without distortion */
+    object-fit: cover;
+}
+
+/* Quagga's canvas sits on top of the video */
+#scanner-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 /* This is the class we use to hide things */

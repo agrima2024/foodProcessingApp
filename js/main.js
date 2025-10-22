@@ -1,50 +1,66 @@
-// Wait for the entire page, including external scripts, to load.
-window.addEventListener('load', function () {
-    console.log("Window fully loaded. Initializing the scanner application.");
+// Get references to all the HTML elements we need to control.
+const resultsUi = document.getElementById('results-ui');
+const productNameEl = document.getElementById('product-name');
+const scoreDisplayEl = document.getElementById('score-display');
+const ingredientsTextEl = document.getElementById('ingredients-text');
+const scannerContainer = document.getElementById('scanner-container');
+const loadingMessage = document.getElementById('loading-message');
 
-    // Get references to all necessary HTML elements.
-    const resultsUi = document.getElementById('results-ui');
-    const productNameEl = document.getElementById('product-name');
-    const scoreDisplayEl = document.getElementById('score-display');
-    const ingredientsTextEl = document.getElementById('ingredients-text');
-    const scannerContainer = document.getElementById('scanner-container');
-    const loadingMessage = document.getElementById('loading-message');
+// Configuration for Quagga
+const quaggaConfig = {
+    inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: scannerContainer, // Render the video stream into this element
+        constraints: {
+            width: 640,
+            height: 480,
+            facingMode: "environment" // Use the rear camera
+        },
+    },
+    decoder: {
+        // We specify only the formats we care about
+        readers: [
+            "ean_reader",
+            "upc_reader",
+            "upc_e_reader"
+        ]
+    }
+};
 
-    // Initialize the barcode reader.
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    console.log('ZXing code reader has been initialized.');
+// Initialize Quagga
+Quagga.init(quaggaConfig, function(err) {
+    if (err) {
+        console.error('Quagga initialization failed:', err);
+        loadingMessage.textContent = 'Error starting camera. Please grant permission.';
+        return;
+    }
+    
+    console.log("Quagga initialization finished. Ready to start.");
+    
+    // Hide the loading message and show the scanner
+    loadingMessage.classList.add('hidden');
+    scannerContainer.classList.remove('hidden');
+    
+    // Start the scanner
+    Quagga.start();
+});
 
-    // Start the process of finding and using the camera.
-    codeReader.listVideoInputDevices()
-        .then((videoInputDevices) => {
-            if (videoInputDevices.length > 0) {
-                // Choose the rear camera if available.
-                const selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
-                console.log(`Starting scan with camera: ${selectedDeviceId}`);
-
-                // Hide the loading message and show the scanner view.
-                loadingMessage.classList.add('hidden');
-                scannerContainer.classList.remove('hidden');
-
-                // Start decoding from the camera.
-                codeReader.decodeFromVideoDevice(selectedDeviceId, 'video-element', (result, err) => {
-                    if (result) {
-                        // A barcode was successfully decoded.
-                        console.log(`Scan successful! Barcode: ${result.text}`);
-                        codeReader.reset(); // Stop the camera.
-                        scannerContainer.classList.add('hidden');
-                        fetchProductData(result.text); // Fetch the product info.
-                    }
-                });
-            } else {
-                console.error("No video input devices found.");
-                loadingMessage.textContent = "No camera found on this device.";
-            }
-        })
-        .catch((err) => {
-            console.error('Error initializing camera:', err);
-            loadingMessage.textContent = 'Could not start camera. Please grant permission and refresh.';
-        });
+// Set up the listener for when a barcode is detected
+Quagga.onDetected(function(result) {
+    const barcode = result.codeResult.code;
+    
+    // Make sure we have a valid barcode and haven't just scanned the same one
+    if (barcode) {
+        console.log(`Scan successful! Barcode: ${barcode}`);
+        
+        // Stop the scanner
+        Quagga.stop();
+        
+        // Hide the scanner and fetch data
+        scannerContainer.classList.add('hidden');
+        fetchProductData(barcode);
+    }
 });
 
 // This function fetches data from the Open Food Facts API.
@@ -57,11 +73,10 @@ function fetchProductData(barcode) {
         .then(data => {
             if (data.status === 1 && data.product) {
                 const product = data.product;
-                const resultsUi = document.getElementById('results-ui');
-                document.getElementById('product-name').textContent = product.product_name || 'Name not found';
-                document.getElementById('score-display').textContent = product.nova_group || '?';
-                document.getElementById('ingredients-text').textContent = product.ingredients_text || 'Ingredients not available.';
                 resultsUi.classList.remove('hidden');
+                productNameEl.textContent = product.product_name || 'Name not found';
+                scoreDisplayEl.textContent = data.product.nova_group || '?';
+                ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
             } else {
                 alert(`Product not found for barcode: ${barcode}. Please try another product.`);
             }

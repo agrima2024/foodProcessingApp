@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Scanner</title>
     <link rel="stylesheet" href="css/style.css">
-    
-    <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.20.0/umd/zxing.min.js" defer></script>
-    
-    <script src="js/main.js" defer></script>
 </head>
 <body>
     <div id="app-container">
@@ -17,12 +13,11 @@
         </header>
         <main>
             <div id="loading-message">
-                <p>Starting camera...</p>
+                <p>Initializing Scanner...</p>
             </div>
-
+            
             <div id="scanner-container" class="hidden">
-                <video id="video-element"></video>
-            </div>
+                </div>
 
             <div id="results-ui" class="hidden">
                 <h2 id="product-name">Product Name Here</h2>
@@ -31,5 +26,9 @@
             </div>
         </main>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    
+    <script src="js/main.js"></script>
 </body>
 </html>
