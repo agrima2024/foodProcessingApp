@@ -74,6 +74,19 @@ main {
     left: 0;
 }
 
+/* Add these new classes for score colors */
+.score-low {
+    background-color: #4CAF50; /* Green */
+}
+
+.score-medium {
+    background-color: #ffc107; /* Yellow */
+}
+
+.score-high {
+    background-color: #e74c3c; /* Red */
+}
+
 /* This is the class we use to hide things */
 .hidden {
     display: none;
