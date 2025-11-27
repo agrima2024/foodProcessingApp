@@ -15,9 +15,7 @@
         <main>
             <div id="scanner-section">
                 <p class="instruction-text">Point camera at a barcode</p>
-
                 <div id="scanner-container"></div>
-                
                 <div id="loading-message">Starting camera...</div>
             </div>
 
@@ -31,9 +29,9 @@
                     <p id="ingredients-text">Fetching details...</p>
                 </div>
 
-                <div id="alternatives-section" class="hidden">
-                    <h3>Healthier Alternatives</h3>
-                    <div id="alternatives-container"></div>
+                <div class="info-card">
+                    <h3>Product Tags (Debug)</h3>
+                    <p id="categories-text">Waiting for scan...</p>
                 </div>
 
                 <button id="scan-again-btn">Scan Next Item</button>
@@ -42,7 +40,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    
     <script src="js/main.js"></script>
 </body>
 </html>
