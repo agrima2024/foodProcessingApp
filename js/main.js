@@ -9,8 +9,10 @@ const productNameEl = document.getElementById('product-name');
 const scoreDisplayEl = document.getElementById('score-display');
 const ingredientsTextEl = document.getElementById('ingredients-text');
 
-// NEW: Reference to the categories text element
-const categoriesTextEl = document.getElementById('categories-text');
+// NEW elements for this step
+const categoryDebugText = document.getElementById('category-debug-text');
+const alternativesSection = document.getElementById('alternatives-section');
+const alternativesContainer = document.getElementById('alternatives-container');
 
 // --- STATE VARIABLES ---
 let isProcessing = false;
@@ -77,7 +79,9 @@ Quagga.onDetected(function(result) {
         // Reset UI
         productNameEl.textContent = "Loading...";
         ingredientsTextEl.textContent = "Fetching...";
-        categoriesTextEl.textContent = "Extracting tags..."; // Reset debug text
+        categoryDebugText.textContent = "...";
+        alternativesContainer.innerHTML = ""; // Clear old products
+        alternativesSection.classList.add('hidden');
         updateScoreUI(0);
         
         fetchProductData(barcode);
@@ -123,6 +127,50 @@ function updateScoreUI(score) {
     scoreDisplayEl.textContent = `${score}%`;
 }
 
+// --- NEW: STEP 2 - Fetch Similar Products ---
+
+function fetchSimilarProducts(categoryTag) {
+    // We search for 5 products in the same category
+    // We ask for specific fields: product_name, image, and nova_group
+    const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&page_size=5&fields=product_name,image_front_small_url,nova_group`;
+
+    console.log(`Fetching similar products for: ${categoryTag}`);
+
+    fetch(searchUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.products && data.products.length > 0) {
+                
+                // Clear the container
+                alternativesContainer.innerHTML = "";
+
+                // Loop through the results and create cards
+                data.products.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'alt-card';
+                    
+                    // HTML for the product card
+                    card.innerHTML = `
+                        <img src="${product.image_front_small_url || 'https://via.placeholder.com/50'}" class="alt-image" alt="Product Image">
+                        <div class="alt-info">
+                            <div class="alt-name">${product.product_name || 'Unknown Product'}</div>
+                            <div class="alt-score">NOVA Group: ${product.nova_group || '?'}</div>
+                        </div>
+                    `;
+                    
+                    alternativesContainer.appendChild(card);
+                });
+
+                // Show the section
+                alternativesSection.classList.remove('hidden');
+            } else {
+                categoryDebugText.textContent += " (No similar products found)";
+            }
+        })
+        .catch(err => console.error("Error fetching similar products:", err));
+}
+
+
 // --- DATA LOGIC ---
 
 function fetchProductData(barcode) {
@@ -139,26 +187,24 @@ function fetchProductData(barcode) {
                 ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
                 updateScoreUI(processedScore);
 
-                // --- STEP 1: DISPLAY TAGS (DEBUGGING) ---
+                // --- LOGIC FOR STEP 2 ---
                 if (product.categories_tags && product.categories_tags.length > 0) {
-                    // 1. Get the raw tags (e.g., ["en:snacks", "en:salty-snacks"])
-                    console.log("Raw Tags:", product.categories_tags);
+                    
+                    // 1. Pick the LAST tag (usually the most specific)
+                    const bestCategory = product.categories_tags[product.categories_tags.length - 1];
+                    
+                    // 2. Display it for debugging
+                    categoryDebugText.textContent = bestCategory.replace('en:', '').replace(/-/g, ' ');
 
-                    // 2. Clean them up so they are readable
-                    const readableTags = product.categories_tags.map(tag => 
-                        tag.replace('en:', '').replace(/-/g, ' ')
-                    );
-
-                    // 3. Display them in the new box
-                    categoriesTextEl.textContent = readableTags.join(', ');
+                    // 3. Fetch similar products
+                    fetchSimilarProducts(bestCategory);
                 } else {
-                    categoriesTextEl.textContent = "No category tags found for this product.";
+                    categoryDebugText.textContent = "No categories found";
                 }
 
             } else {
                 productNameEl.textContent = "Product Not Found";
                 ingredientsTextEl.textContent = `No data for barcode: ${barcode}`;
-                categoriesTextEl.textContent = "-";
                 scoreDisplayEl.textContent = "?";
             }
         })
