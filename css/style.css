@@ -1,45 +1,11 @@
-/* Basic setup for the whole page */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    background-color: #f0f2f5;
-    color: #333;
-}
-
-/* The main container for the app */
-#app-container {
-    max-width: 450px;
-    margin: 0 auto;
-    background-color: #ffffff;
-    min-height: 100vh;
-}
-
-/* Style the header */
-header {
-    background-color: #4CAF50;
-    color: white;
-    padding: 20px;
-    text-align: center;
-    font-size: 1.2em;
-}
-
-/* Style the main content area */
-main {
-    padding: 20px;
-    text-align: center;
-}
-
-#loading-message {
-    padding: 40px 0;
-    color: #888;
-}
+/* ... (Keep all your existing styles) ... */
 
 /* Style the score display circle */
 #score-display {
     width: 100px;
     height: 100px;
     margin: 20px auto;
-    background-color: #e74c3c;
+    background-color: #ccc;
     color: white;
     border-radius: 50%;
     display: flex;
@@ -49,56 +15,29 @@ main {
     font-weight: bold;
 }
 
-/* Style the container that holds the camera view */
-#scanner-container {
-    width: 300px;
-    height: 300px;
-    margin: 20px auto;
-    border: 5px solid #eee;
-    border-radius: 8px;
-    overflow: hidden;
-    position: relative; /* This is important for Quagga */
-}
+/* Specific colors for scores */
+#score-display.score-low { background-color: #4CAF50; }
+#score-display.score-medium { background-color: #ffc107; }
+#score-display.score-high { background-color: #e74c3c; }
 
-/* Quagga will create video and canvas elements, this targets them */
-#scanner-container video, #scanner-container canvas {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+/* ... (Keep container styles) ... */
 
-/* Quagga's canvas sits on top of the video */
-#scanner-container canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-
-#score-display {
-    width: 100px;
-    height: 100px;
-    margin: 20px auto;
-    background-color: #ccc; /* CHANGE: Set a neutral grey as default */
+/* NEW: Style the Scan Again button */
+#scan-again-btn {
+    background-color: #4CAF50; /* Match header green */
     color: white;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2em;
-    font-weight: bold;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1em;
+    border-radius: 25px; /* Rounded pill shape */
+    cursor: pointer;
+    margin-top: 20px;
+    width: 100%; /* Full width on mobile */
+    max-width: 300px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Subtle shadow */
 }
 
-/* THE FIX: Use specific selectors (#id.class) to override the default.
-*/
-
-#score-display.score-low {
-    background-color: #4CAF50; /* Green */
-}
-
-#score-display.score-medium {
-    background-color: #ffc107; /* Yellow */
-}
-
-#score-display.score-high {
-    background-color: #e74c3c; /* Red */
+#scan-again-btn:active {
+    background-color: #45a049; /* Slightly darker on click */
+    transform: translateY(2px); /* Move down slightly on click */
 }
