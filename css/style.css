@@ -1,43 +1,133 @@
-/* ... (Keep all your existing styles) ... */
+/* Basic setup */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    text-align: center; /* CENTERING FIX: Centers all text globally */
+}
 
-/* Style the score display circle */
+#app-container {
+    max-width: 450px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background-color: #4CAF50;
+    color: white;
+    padding: 15px;
+    font-size: 1.1em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+main {
+    padding: 20px;
+    flex: 1; /* Pushes content to fill space */
+}
+
+/* --- SCANNNER SECTION STYLES --- */
+
+#scanner-container {
+    width: 220px;  /* SMALLER CAMERA FIX */
+    height: 220px; /* Square aspect ratio */
+    margin: 30px auto 20px auto; /* Centers the box */
+    border: 4px solid #4CAF50;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background-color: #000;
+}
+
+#scanner-container video, #scanner-container canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#scanner-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.instruction-text {
+    color: #666;
+    margin-top: 10px;
+}
+
+/* --- RESULTS SECTION STYLES --- */
+
 #score-display {
-    width: 100px;
-    height: 100px;
-    margin: 20px auto;
+    width: 120px;
+    height: 120px;
+    margin: 10px auto 20px auto;
     background-color: #ccc;
     color: white;
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2em;
+    font-size: 2.5em;
     font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
 /* Specific colors for scores */
-#score-display.score-low { background-color: #4CAF50; }
-#score-display.score-medium { background-color: #ffc107; }
-#score-display.score-high { background-color: #e74c3c; }
+#score-display.score-low { background-color: #4CAF50; } /* Green */
+#score-display.score-medium { background-color: #ffc107; } /* Yellow */
+#score-display.score-high { background-color: #e74c3c; } /* Red */
 
-/* ... (Keep container styles) ... */
+#product-name {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+    color: #222;
+}
 
-/* NEW: Style the Scan Again button */
+.info-card {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    text-align: left; /* Keep long ingredients text readable */
+}
+
+.info-card h3 {
+    margin-top: 0;
+    font-size: 1em;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+#ingredients-text {
+    font-size: 0.9em;
+    line-height: 1.5;
+    color: #444;
+}
+
 #scan-again-btn {
-    background-color: #4CAF50; /* Match header green */
+    background-color: #4CAF50;
     color: white;
     border: none;
-    padding: 15px 30px;
+    padding: 15px 40px;
     font-size: 1.1em;
-    border-radius: 25px; /* Rounded pill shape */
+    border-radius: 30px;
     cursor: pointer;
-    margin-top: 20px;
-    width: 100%; /* Full width on mobile */
-    max-width: 300px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Subtle shadow */
+    width: 100%;
+    max-width: 280px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    transition: transform 0.1s;
 }
 
 #scan-again-btn:active {
-    background-color: #45a049; /* Slightly darker on click */
-    transform: translateY(2px); /* Move down slightly on click */
+    transform: scale(0.98);
+}
+
+.hidden {
+    display: none !important;
 }

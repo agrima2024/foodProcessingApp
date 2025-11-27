@@ -11,20 +11,28 @@
         <header>
             <h1>Food Scanner</h1>
         </header>
+        
         <main>
-            <div id="loading-message">
-                <p>Initializing Scanner...</p>
-            </div>
-            
-            <div id="scanner-container" class="hidden"></div>
-
-            <div id="results-ui" class="hidden">
-                <h2 id="product-name">Product Name Here</h2>
+            <div id="scanner-section">
+                <div id="loading-message">
+                    <p>Starting camera...</p>
+                </div>
                 
+                <div id="scanner-container" class="hidden"></div>
+                
+                <p class="instruction-text">Point camera at a barcode</p>
+            </div>
+
+            <div id="results-section" class="hidden">
                 <div id="score-display">?</div>
                 
-                <p id="ingredients-text">Ingredients will be listed here...</p>
+                <h2 id="product-name">Product Name</h2>
                 
+                <div class="info-card">
+                    <h3>Ingredients</h3>
+                    <p id="ingredients-text">Loading...</p>
+                </div>
+
                 <button id="scan-again-btn">Scan Next Item</button>
             </div>
         </main>

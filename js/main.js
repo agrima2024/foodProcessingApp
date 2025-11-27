@@ -1,20 +1,23 @@
-// Get references to all the HTML elements
-const resultsUi = document.getElementById('results-ui');
+// HTML Elements
+const scannerSection = document.getElementById('scanner-section');
+const resultsSection = document.getElementById('results-section');
+const scannerContainer = document.getElementById('scanner-container');
+const loadingMessage = document.getElementById('loading-message');
+const scanAgainBtn = document.getElementById('scan-again-btn');
+
+// Result Elements
 const productNameEl = document.getElementById('product-name');
 const scoreDisplayEl = document.getElementById('score-display');
 const ingredientsTextEl = document.getElementById('ingredients-text');
-const scannerContainer = document.getElementById('scanner-container');
-const loadingMessage = document.getElementById('loading-message');
-const scanAgainBtn = document.getElementById('scan-again-btn'); // NEW reference
 
-// 1. Configuration for Quagga
+// Quagga Configuration
 const quaggaConfig = {
     inputStream: {
         name: "Live",
         type: "LiveStream",
         target: scannerContainer,
         constraints: {
-            width: 640,
+            width: 480, // Lower resolution for better performance on small box
             height: 480,
             facingMode: "environment"
         },
@@ -24,62 +27,71 @@ const quaggaConfig = {
     }
 };
 
-// 2. Function to Initialize and Start the Scanner
-function startScanner() {
-    // Reset UI: Show loading, hide scanner (until ready), hide results
+// --- VIEW SWITCHING LOGIC ---
+
+function showScannerView() {
+    resultsSection.classList.add('hidden');
+    scannerSection.classList.remove('hidden');
+    
+    // Reset scanner UI
     loadingMessage.classList.remove('hidden');
     scannerContainer.classList.add('hidden');
-    resultsUi.classList.add('hidden');
+    
+    startQuagga();
+}
 
+function showResultsView() {
+    // Stop the camera to save battery and remove the video element
+    Quagga.stop();
+    
+    scannerSection.classList.add('hidden');
+    resultsSection.classList.remove('hidden');
+}
+
+// --- SCANNER LOGIC ---
+
+function startQuagga() {
     Quagga.init(quaggaConfig, function(err) {
         if (err) {
-            console.error('Quagga initialization failed:', err);
-            loadingMessage.textContent = 'Error starting camera. Please grant permission.';
+            console.error('Quagga init failed:', err);
+            loadingMessage.textContent = 'Error starting camera.';
             return;
         }
         
-        console.log("Quagga initialization finished. Ready to start.");
-        
-        // UI Update: Hide loading, show scanner
+        console.log("Quagga ready.");
         loadingMessage.classList.add('hidden');
         scannerContainer.classList.remove('hidden');
-        
         Quagga.start();
     });
 }
 
-// 3. Listen for Barcode Detection
 Quagga.onDetected(function(result) {
     const barcode = result.codeResult.code;
-    
-    // Check if a barcode was actually found
     if (barcode) {
-        console.log(`Scan successful! Barcode: ${barcode}`);
+        console.log(`Barcode found: ${barcode}`);
         
-        // Stop the scanner immediately
-        Quagga.stop();
+        // Immediately switch views to stop scanning multiple times
+        showResultsView();
         
-        // Hide the scanner container immediately (gets rid of the camera square)
-        scannerContainer.classList.add('hidden');
+        // Show placeholder data while fetching
+        productNameEl.textContent = "Loading...";
+        ingredientsTextEl.textContent = "Fetching details...";
+        updateScoreUI(0); // Reset score color
         
-        // Fetch the data
         fetchProductData(barcode);
     }
 });
 
-// 4. NEW: Listen for the "Scan Again" button click
 scanAgainBtn.addEventListener('click', function() {
-    startScanner();
+    showScannerView();
 });
 
-// 5. Start the scanner automatically when the page loads
-startScanner();
-
-
-// --- Helper Functions ---
+// --- DATA LOGIC ---
 
 function calculateProcessedScore(product) {
     let score = 0;
+    
+    // Base Score from NOVA
     const novaGroup = product.nova_group;
     if (novaGroup === 1) score = 0;
     else if (novaGroup === 2) score = 20;
@@ -87,26 +99,21 @@ function calculateProcessedScore(product) {
     else if (novaGroup === 4) score = 60;
     else score = 10;
 
-    const ingredients = product.ingredients_text_with_allergens || "";
-    const lowerCaseIngredients = ingredients.toLowerCase();
+    // Ingredient Penalties
+    const ingredients = (product.ingredients_text_with_allergens || "").toLowerCase();
+    
+    if (ingredients.includes('corn syrup')) score += 10;
+    if (ingredients.includes('artificial flavor')) score += 5;
+    if (ingredients.includes('artificial color')) score += 5;
+    if (ingredients.includes('red 40') || ingredients.includes('yellow 5') || ingredients.includes('blue 1')) score += 5;
+    if (ingredients.includes('hydrogenated')) score += 10;
+    if (ingredients.includes('nitrite') || ingredients.includes('nitrate')) score += 7;
 
-    if (lowerCaseIngredients.includes('corn syrup')) score += 10;
-    if (lowerCaseIngredients.includes('artificial flavor')) score += 5;
-    if (lowerCaseIngredients.includes('artificial color')) score += 5;
-    if (lowerCaseIngredients.includes('red 40')) score += 3;
-    if (lowerCaseIngredients.includes('yellow 5')) score += 3;
-    if (lowerCaseIngredients.includes('blue 1')) score += 3;
-    if (lowerCaseIngredients.includes('hydrogenated oil')) score += 10;
-    if (lowerCaseIngredients.includes('sodium nitrite')) score += 7;
-
+    // Nutritional Penalties
     const nutriments = product.nutriments || {};
-    const sugarPer100g = nutriments.sugars_100g || 0;
-    const sodiumPer100g = nutriments.sodium_100g || 0;
-
-    if (sugarPer100g > 15) score += 5;
-    if (sugarPer100g > 25) score += 5;
-    if (sodiumPer100g > 0.6) score += 5;
-    if (sodiumPer100g > 1.5) score += 5;
+    if ((nutriments.sugars_100g || 0) > 15) score += 5;
+    if ((nutriments.sugars_100g || 0) > 25) score += 5;
+    if ((nutriments.sodium_100g || 0) > 0.6) score += 5;
 
     if (score > 100) score = 100;
     return score;
@@ -114,6 +121,12 @@ function calculateProcessedScore(product) {
 
 function updateScoreUI(score) {
     scoreDisplayEl.classList.remove('score-low', 'score-medium', 'score-high');
+    
+    if (score === 0 && scoreDisplayEl.textContent === "?") {
+        // Keep grey if resetting
+        return;
+    }
+
     if (score < 40) {
         scoreDisplayEl.classList.add('score-low');
     } else if (score < 70) {
@@ -126,8 +139,7 @@ function updateScoreUI(score) {
 
 function fetchProductData(barcode) {
     const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}`;
-    console.log(`Fetching data from: ${apiUrl}`);
-
+    
     fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
@@ -135,23 +147,20 @@ function fetchProductData(barcode) {
                 const product = data.product;
                 const processedScore = calculateProcessedScore(product);
 
-                // Update UI elements
                 productNameEl.textContent = product.product_name || 'Name not found';
-                ingredientsTextEl.textContent = product.ingredients_text_with_allergens || 'Ingredients not available.';
+                ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
                 updateScoreUI(processedScore);
-                
-                // Show the results
-                resultsUi.classList.remove('hidden');
-
             } else {
-                alert(`Product not found for barcode: ${barcode}. Please try another product.`);
-                // If not found, restart scanner so user isn't stuck
-                startScanner();
+                alert("Product not found. Please try another.");
+                showScannerView();
             }
         })
         .catch(error => {
-            console.error('Fetch error:', error);
-            alert('Could not connect to the database.');
-            startScanner();
+            console.error('Error:', error);
+            alert("Network error.");
+            showScannerView();
         });
 }
+
+// Start the app
+showScannerView();
