@@ -14,26 +14,26 @@
         
         <main>
             <div id="scanner-section">
-                <div id="loading-message">
-                    <p>Starting camera...</p>
-                </div>
-                <div id="scanner-container" class="hidden"></div>
                 <p class="instruction-text">Point camera at a barcode</p>
+
+                <div id="scanner-container"></div>
+                
+                <div id="loading-message">Starting camera...</div>
             </div>
 
             <div id="results-section" class="hidden">
                 <div id="score-display">?</div>
-                <h2 id="product-name">Product Name</h2>
+                
+                <h2 id="product-name">Loading...</h2>
                 
                 <div class="info-card">
                     <h3>Ingredients</h3>
-                    <p id="ingredients-text">Loading...</p>
+                    <p id="ingredients-text">Fetching details...</p>
                 </div>
 
                 <div id="alternatives-section" class="hidden">
                     <h3>Healthier Alternatives</h3>
-                    <div id="alternatives-container">
-                        </div>
+                    <div id="alternatives-container"></div>
                 </div>
 
                 <button id="scan-again-btn">Scan Next Item</button>

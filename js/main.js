@@ -1,18 +1,21 @@
-// HTML Elements
+// --- HTML Elements ---
 const scannerSection = document.getElementById('scanner-section');
 const resultsSection = document.getElementById('results-section');
 const scannerContainer = document.getElementById('scanner-container');
 const loadingMessage = document.getElementById('loading-message');
 const scanAgainBtn = document.getElementById('scan-again-btn');
 
-// Result Elements
 const productNameEl = document.getElementById('product-name');
 const scoreDisplayEl = document.getElementById('score-display');
 const ingredientsTextEl = document.getElementById('ingredients-text');
 const alternativesSection = document.getElementById('alternatives-section');
 const alternativesContainer = document.getElementById('alternatives-container');
 
-// Quagga Configuration
+// --- STATE VARIABLES ---
+// We use this to prevent double-scanning
+let isProcessing = false;
+
+// --- CONFIGURATION ---
 const quaggaConfig = {
     inputStream: {
         name: "Live",
@@ -29,45 +32,43 @@ const quaggaConfig = {
     }
 };
 
-// --- VIEW SWITCHING LOGIC ---
+// --- VIEW LOGIC ---
 
 function showScannerView() {
+    isProcessing = false; // Reset the lock so we can scan again
+
+    // Switch Screens
     resultsSection.classList.add('hidden');
     scannerSection.classList.remove('hidden');
     
-    // Show loading message
+    // Reset UI
     loadingMessage.classList.remove('hidden');
     
-    // CRITICAL FIX: The container MUST be visible for Quagga to initialize
-    // We remove the 'hidden' class immediately.
-    scannerContainer.classList.remove('hidden');
-    
+    // Start Camera
     startQuagga();
 }
 
 function showResultsView() {
-    // Stop the camera to save battery
-    Quagga.stop();
-    
+    // Switch Screens
     scannerSection.classList.add('hidden');
     resultsSection.classList.remove('hidden');
+
+    // Stop Camera immediately
+    Quagga.stop();
 }
 
 // --- SCANNER LOGIC ---
 
 function startQuagga() {
-    // Check if Quagga is already running to prevent errors
-    // (We wrap init in a short timeout to let the DOM render the visible box)
+    // Wait a tiny bit to ensure the container is rendered
     setTimeout(() => {
         Quagga.init(quaggaConfig, function(err) {
             if (err) {
                 console.error('Quagga init failed:', err);
-                loadingMessage.textContent = 'Error starting camera. Please grant permission.';
+                loadingMessage.textContent = 'Camera Error: Please allow permissions.';
                 return;
             }
-            
             console.log("Quagga ready.");
-            // Hide the loading text now that the camera is ready
             loadingMessage.classList.add('hidden');
             Quagga.start();
         });
@@ -75,47 +76,49 @@ function startQuagga() {
 }
 
 Quagga.onDetected(function(result) {
+    // If we are already busy processing a scan, ignore new detections
+    if (isProcessing) return;
+
     const barcode = result.codeResult.code;
     
-    // Quagga can sometimes trigger multiple times rapidly, so we verify we have a code
-    // and check if we are currently looking for one (scanner section is visible)
-    if (barcode && !scannerSection.classList.contains('hidden')) {
+    if (barcode) {
         console.log(`Barcode found: ${barcode}`);
+        isProcessing = true; // Lock the scanner
         
-        // Switch views immediately
+        // Go to results page immediately
         showResultsView();
         
-        // Reset UI data
+        // Show "Loading" state
         productNameEl.textContent = "Loading...";
-        ingredientsTextEl.textContent = "Fetching details...";
+        ingredientsTextEl.textContent = "Fetching product details...";
+        updateScoreUI(0);
         alternativesSection.classList.add('hidden');
         alternativesContainer.innerHTML = "";
-        updateScoreUI(0);
         
+        // Get the real data
         fetchProductData(barcode);
     }
 });
 
-scanAgainBtn.addEventListener('click', function() {
-    showScannerView();
-});
+// Button Click Event
+scanAgainBtn.addEventListener('click', showScannerView);
 
-// --- DATA LOGIC ---
+
+// --- API & SCORING LOGIC ---
 
 function calculateProcessedScore(product) {
     let score = 0;
-    
-    // Base Score from NOVA
     const novaGroup = product.nova_group;
+    
+    // Base Score
     if (novaGroup === 1) score = 0;
     else if (novaGroup === 2) score = 20;
     else if (novaGroup === 3) score = 40;
     else if (novaGroup === 4) score = 60;
     else score = 10;
 
-    // Ingredient Penalties
+    // Ingredients Analysis
     const ingredients = (product.ingredients_text_with_allergens || "").toLowerCase();
-    
     if (ingredients.includes('corn syrup')) score += 10;
     if (ingredients.includes('artificial flavor')) score += 5;
     if (ingredients.includes('artificial color')) score += 5;
@@ -123,10 +126,10 @@ function calculateProcessedScore(product) {
     if (ingredients.includes('hydrogenated')) score += 10;
     if (ingredients.includes('nitrite') || ingredients.includes('nitrate')) score += 7;
 
-    // Nutritional Penalties
+    // Nutritional Analysis
     const nutriments = product.nutriments || {};
     if ((nutriments.sugars_100g || 0) > 15) score += 5;
-    if ((nutriments.sodium_100g || 0) > 0.6) score += 5;
+    if ((nutriments.sodium_100g || 0) > 0.6) score += 5; // 600mg
 
     if (score > 100) score = 100;
     return score;
@@ -135,35 +138,26 @@ function calculateProcessedScore(product) {
 function updateScoreUI(score) {
     scoreDisplayEl.classList.remove('score-low', 'score-medium', 'score-high');
     
-    if (score === 0 && scoreDisplayEl.textContent === "?") {
-        return;
-    }
+    if (score === 0 && scoreDisplayEl.textContent === "?") return;
 
-    if (score < 40) {
-        scoreDisplayEl.classList.add('score-low');
-    } else if (score < 70) {
-        scoreDisplayEl.classList.add('score-medium');
-    } else {
-        scoreDisplayEl.classList.add('score-high');
-    }
+    if (score < 40) scoreDisplayEl.classList.add('score-low');
+    else if (score < 70) scoreDisplayEl.classList.add('score-medium');
+    else scoreDisplayEl.classList.add('score-high');
+    
     scoreDisplayEl.textContent = `${score}%`;
 }
 
-// --- ALTERNATIVES SEARCH ---
 function fetchAlternatives(categoryTag) {
     if (!categoryTag) return;
 
-    // Search for products in the SAME category with Nutri-Score A or B
+    // Search for A/B Nutri-Score items in the same category
     const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&nutrition_grades_tags=a,b&sort_by=unique_scans_n&page_size=3&fields=product_name,code,image_front_small_url,nutrition_grades_tags`;
-
-    console.log(`Searching alternatives for category: ${categoryTag}`);
 
     fetch(searchUrl)
         .then(response => response.json())
         .then(data => {
             if (data.products && data.products.length > 0) {
                 alternativesContainer.innerHTML = "";
-                
                 data.products.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'alt-card';
@@ -176,11 +170,10 @@ function fetchAlternatives(categoryTag) {
                     `;
                     alternativesContainer.appendChild(card);
                 });
-                
                 alternativesSection.classList.remove('hidden');
             }
         })
-        .catch(err => console.error("Error fetching alternatives:", err));
+        .catch(console.error);
 }
 
 function fetchProductData(barcode) {
@@ -197,21 +190,22 @@ function fetchProductData(barcode) {
                 ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
                 updateScoreUI(processedScore);
 
-                // Trigger Alternatives Search
                 if (product.categories_tags && product.categories_tags.length > 0) {
                     const category = product.categories_tags[product.categories_tags.length - 1];
                     fetchAlternatives(category);
                 }
-
             } else {
-                alert("Product not found. Please try another.");
-                showScannerView();
+                // BUG FIX: Instead of alerting and resetting, we just show the error on the Results page.
+                // This prevents the "scan again loop" you were seeing.
+                productNameEl.textContent = "Product Not Found";
+                ingredientsTextEl.textContent = `Sorry, we couldn't find data for barcode: ${barcode}`;
+                scoreDisplayEl.textContent = "?";
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert("Network error.");
-            showScannerView();
+            productNameEl.textContent = "Network Error";
+            ingredientsTextEl.textContent = "Please check your internet connection.";
         });
 }
 
