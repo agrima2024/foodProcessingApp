@@ -9,8 +9,6 @@ const productNameEl = document.getElementById('product-name');
 const scoreDisplayEl = document.getElementById('score-display');
 const ingredientsTextEl = document.getElementById('ingredients-text');
 
-// NEW elements for this step
-const categoryDebugText = document.getElementById('category-debug-text');
 const alternativesSection = document.getElementById('alternatives-section');
 const alternativesContainer = document.getElementById('alternatives-container');
 
@@ -79,8 +77,7 @@ Quagga.onDetected(function(result) {
         // Reset UI
         productNameEl.textContent = "Loading...";
         ingredientsTextEl.textContent = "Fetching...";
-        categoryDebugText.textContent = "...";
-        alternativesContainer.innerHTML = ""; // Clear old products
+        alternativesContainer.innerHTML = "";
         alternativesSection.classList.add('hidden');
         updateScoreUI(0);
         
@@ -97,18 +94,21 @@ function calculateProcessedScore(product) {
     let score = 0;
     const novaGroup = product.nova_group;
     
+    // Base Score
     if (novaGroup === 1) score = 0;
     else if (novaGroup === 2) score = 20;
     else if (novaGroup === 3) score = 40;
     else if (novaGroup === 4) score = 60;
     else score = 10;
 
+    // Ingredients
     const ingredients = (product.ingredients_text_with_allergens || "").toLowerCase();
     if (ingredients.includes('corn syrup')) score += 10;
     if (ingredients.includes('artificial flavor')) score += 5;
     if (ingredients.includes('artificial color')) score += 5;
     if (ingredients.includes('hydrogenated')) score += 10;
 
+    // Nutriments
     const nutriments = product.nutriments || {};
     if ((nutriments.sugars_100g || 0) > 15) score += 5;
     if ((nutriments.sodium_100g || 0) > 0.6) score += 5;
@@ -127,47 +127,52 @@ function updateScoreUI(score) {
     scoreDisplayEl.textContent = `${score}%`;
 }
 
-// --- NEW: STEP 2 - Fetch Similar Products ---
+// --- NEW: STEP 3 - Filter for HEALTHIER Products ---
 
-function fetchSimilarProducts(categoryTag) {
-    // We search for 5 products in the same category
-    // We ask for specific fields: product_name, image, and nova_group
-    const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&page_size=5&fields=product_name,image_front_small_url,nova_group`;
+function fetchSimilarProducts(categoryTag, currentNova) {
+    // 1. FILTER: Search for products in the same category
+    // 2. FILTER: Only include items with NOVA Group 1, 2, or 3 (Less processed)
+    // 3. SORT: Sort by popularity (unique_scans_n) so we show common items
+    const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&nova_groups=1,2,3&sort_by=unique_scans_n&page_size=3&fields=product_name,image_front_small_url,nova_group`;
 
-    console.log(`Fetching similar products for: ${categoryTag}`);
+    console.log(`Searching healthier alternatives for: ${categoryTag}`);
 
     fetch(searchUrl)
         .then(response => response.json())
         .then(data => {
             if (data.products && data.products.length > 0) {
                 
-                // Clear the container
                 alternativesContainer.innerHTML = "";
 
-                // Loop through the results and create cards
+                // Loop through the results
                 data.products.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'alt-card';
                     
-                    // HTML for the product card
+                    // Logic to set color of the small NOVA badge
+                    let novaColor = '#4CAF50'; // Green default
+                    if(product.nova_group === 3) novaColor = '#ffc107'; // Yellow
+
                     card.innerHTML = `
-                        <img src="${product.image_front_small_url || 'https://via.placeholder.com/50'}" class="alt-image" alt="Product Image">
+                        <img src="${product.image_front_small_url || 'https://via.placeholder.com/50'}" class="alt-image" alt="Product">
                         <div class="alt-info">
                             <div class="alt-name">${product.product_name || 'Unknown Product'}</div>
-                            <div class="alt-score">NOVA Group: ${product.nova_group || '?'}</div>
+                            <div class="alt-score" style="color: ${novaColor}">
+                                Better Choice (NOVA ${product.nova_group})
+                            </div>
                         </div>
                     `;
                     
                     alternativesContainer.appendChild(card);
                 });
 
-                // Show the section
                 alternativesSection.classList.remove('hidden');
             } else {
-                categoryDebugText.textContent += " (No similar products found)";
+                console.log("No healthier alternatives found.");
+                // We keep the section hidden if nothing is found
             }
         })
-        .catch(err => console.error("Error fetching similar products:", err));
+        .catch(err => console.error("Error fetching alternatives:", err));
 }
 
 
@@ -187,19 +192,19 @@ function fetchProductData(barcode) {
                 ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
                 updateScoreUI(processedScore);
 
-                // --- LOGIC FOR STEP 2 ---
-                if (product.categories_tags && product.categories_tags.length > 0) {
+                // --- TRIGGER SEARCH ---
+                // Only look for alternatives if the scanned product is somewhat processed (NOVA 3 or 4)
+                if (product.nova_group >= 3 && product.categories_tags && product.categories_tags.length > 0) {
                     
-                    // 1. Pick the LAST tag (usually the most specific)
+                    // Pick the last tag (most specific)
                     const bestCategory = product.categories_tags[product.categories_tags.length - 1];
                     
-                    // 2. Display it for debugging
-                    categoryDebugText.textContent = bestCategory.replace('en:', '').replace(/-/g, ' ');
-
-                    // 3. Fetch similar products
-                    fetchSimilarProducts(bestCategory);
-                } else {
-                    categoryDebugText.textContent = "No categories found";
+                    fetchSimilarProducts(bestCategory, product.nova_group);
+                } 
+                else if (product.nova_group <= 2) {
+                    // If the product is already healthy (NOVA 1 or 2), we can tell the user!
+                    alternativesSection.classList.remove('hidden');
+                    alternativesContainer.innerHTML = "<p style='color:#4CAF50; font-weight:bold;'>Great choice! This is already a low-processed food.</p>";
                 }
 
             } else {
