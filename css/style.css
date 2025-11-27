@@ -1,133 +1,65 @@
-/* Basic setup */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    background-color: #f0f2f5;
-    color: #333;
-    text-align: center; /* CENTERING FIX: Centers all text globally */
+/* ... (Keep all your existing styles from the previous step) ... */
+
+/* --- ALTERNATIVES SECTION --- */
+
+#alternatives-section {
+    margin-top: 20px;
+    text-align: left;
 }
 
-#app-container {
-    max-width: 450px;
-    margin: 0 auto;
-    background-color: #ffffff;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-header {
-    background-color: #4CAF50;
-    color: white;
-    padding: 15px;
+#alternatives-section h3 {
+    margin-bottom: 10px;
     font-size: 1.1em;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-main {
-    padding: 20px;
-    flex: 1; /* Pushes content to fill space */
-}
-
-/* --- SCANNNER SECTION STYLES --- */
-
-#scanner-container {
-    width: 220px;  /* SMALLER CAMERA FIX */
-    height: 220px; /* Square aspect ratio */
-    margin: 30px auto 20px auto; /* Centers the box */
-    border: 4px solid #4CAF50;
-    border-radius: 12px;
-    overflow: hidden;
-    position: relative;
-    background-color: #000;
-}
-
-#scanner-container video, #scanner-container canvas {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-#scanner-container canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-
-.instruction-text {
-    color: #666;
-    margin-top: 10px;
-}
-
-/* --- RESULTS SECTION STYLES --- */
-
-#score-display {
-    width: 120px;
-    height: 120px;
-    margin: 10px auto 20px auto;
-    background-color: #ccc;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2.5em;
-    font-weight: bold;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-/* Specific colors for scores */
-#score-display.score-low { background-color: #4CAF50; } /* Green */
-#score-display.score-medium { background-color: #ffc107; } /* Yellow */
-#score-display.score-high { background-color: #e74c3c; } /* Red */
-
-#product-name {
-    font-size: 1.5em;
-    margin-bottom: 20px;
-    color: #222;
-}
-
-.info-card {
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 25px;
-    text-align: left; /* Keep long ingredients text readable */
-}
-
-.info-card h3 {
-    margin-top: 0;
-    font-size: 1em;
-    color: #555;
+    color: #4CAF50;
     text-transform: uppercase;
     letter-spacing: 1px;
-    text-align: center;
 }
 
-#ingredients-text {
-    font-size: 0.9em;
-    line-height: 1.5;
-    color: #444;
+/* Container for the cards */
+#alternatives-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-#scan-again-btn {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 15px 40px;
-    font-size: 1.1em;
-    border-radius: 30px;
-    cursor: pointer;
-    width: 100%;
-    max-width: 280px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+/* Individual Product Card */
+.alt-card {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     transition: transform 0.1s;
 }
 
-#scan-again-btn:active {
+.alt-card:active {
     transform: scale(0.98);
 }
 
-.hidden {
-    display: none !important;
+.alt-image {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    border-radius: 4px;
+    margin-right: 15px;
+    background-color: #f9f9f9;
+}
+
+.alt-info {
+    flex: 1;
+}
+
+.alt-name {
+    font-weight: bold;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.alt-score {
+    font-size: 0.85em;
+    color: #4CAF50; /* Green text for "Good Choice" */
+    font-weight: 600;
 }

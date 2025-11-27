@@ -9,6 +9,8 @@ const scanAgainBtn = document.getElementById('scan-again-btn');
 const productNameEl = document.getElementById('product-name');
 const scoreDisplayEl = document.getElementById('score-display');
 const ingredientsTextEl = document.getElementById('ingredients-text');
+const alternativesSection = document.getElementById('alternatives-section');
+const alternativesContainer = document.getElementById('alternatives-container');
 
 // Quagga Configuration
 const quaggaConfig = {
@@ -17,7 +19,7 @@ const quaggaConfig = {
         type: "LiveStream",
         target: scannerContainer,
         constraints: {
-            width: 480, // Lower resolution for better performance on small box
+            width: 480,
             height: 480,
             facingMode: "environment"
         },
@@ -27,23 +29,18 @@ const quaggaConfig = {
     }
 };
 
-// --- VIEW SWITCHING LOGIC ---
+// --- VIEW SWITCHING ---
 
 function showScannerView() {
     resultsSection.classList.add('hidden');
     scannerSection.classList.remove('hidden');
-    
-    // Reset scanner UI
     loadingMessage.classList.remove('hidden');
     scannerContainer.classList.add('hidden');
-    
     startQuagga();
 }
 
 function showResultsView() {
-    // Stop the camera to save battery and remove the video element
     Quagga.stop();
-    
     scannerSection.classList.add('hidden');
     resultsSection.classList.remove('hidden');
 }
@@ -57,7 +54,6 @@ function startQuagga() {
             loadingMessage.textContent = 'Error starting camera.';
             return;
         }
-        
         console.log("Quagga ready.");
         loadingMessage.classList.add('hidden');
         scannerContainer.classList.remove('hidden');
@@ -69,29 +65,25 @@ Quagga.onDetected(function(result) {
     const barcode = result.codeResult.code;
     if (barcode) {
         console.log(`Barcode found: ${barcode}`);
-        
-        // Immediately switch views to stop scanning multiple times
         showResultsView();
         
-        // Show placeholder data while fetching
+        // Reset UI
         productNameEl.textContent = "Loading...";
         ingredientsTextEl.textContent = "Fetching details...";
-        updateScoreUI(0); // Reset score color
+        alternativesSection.classList.add('hidden'); // Hide alts until loaded
+        alternativesContainer.innerHTML = ""; // Clear old alts
+        updateScoreUI(0);
         
         fetchProductData(barcode);
     }
 });
 
-scanAgainBtn.addEventListener('click', function() {
-    showScannerView();
-});
+scanAgainBtn.addEventListener('click', showScannerView);
 
 // --- DATA LOGIC ---
 
 function calculateProcessedScore(product) {
     let score = 0;
-    
-    // Base Score from NOVA
     const novaGroup = product.nova_group;
     if (novaGroup === 1) score = 0;
     else if (novaGroup === 2) score = 20;
@@ -99,20 +91,14 @@ function calculateProcessedScore(product) {
     else if (novaGroup === 4) score = 60;
     else score = 10;
 
-    // Ingredient Penalties
     const ingredients = (product.ingredients_text_with_allergens || "").toLowerCase();
-    
     if (ingredients.includes('corn syrup')) score += 10;
     if (ingredients.includes('artificial flavor')) score += 5;
     if (ingredients.includes('artificial color')) score += 5;
-    if (ingredients.includes('red 40') || ingredients.includes('yellow 5') || ingredients.includes('blue 1')) score += 5;
     if (ingredients.includes('hydrogenated')) score += 10;
-    if (ingredients.includes('nitrite') || ingredients.includes('nitrate')) score += 7;
 
-    // Nutritional Penalties
     const nutriments = product.nutriments || {};
     if ((nutriments.sugars_100g || 0) > 15) score += 5;
-    if ((nutriments.sugars_100g || 0) > 25) score += 5;
     if ((nutriments.sodium_100g || 0) > 0.6) score += 5;
 
     if (score > 100) score = 100;
@@ -121,20 +107,48 @@ function calculateProcessedScore(product) {
 
 function updateScoreUI(score) {
     scoreDisplayEl.classList.remove('score-low', 'score-medium', 'score-high');
-    
-    if (score === 0 && scoreDisplayEl.textContent === "?") {
-        // Keep grey if resetting
-        return;
-    }
+    if (score === 0 && scoreDisplayEl.textContent === "?") return;
 
-    if (score < 40) {
-        scoreDisplayEl.classList.add('score-low');
-    } else if (score < 70) {
-        scoreDisplayEl.classList.add('score-medium');
-    } else {
-        scoreDisplayEl.classList.add('score-high');
-    }
+    if (score < 40) scoreDisplayEl.classList.add('score-low');
+    else if (score < 70) scoreDisplayEl.classList.add('score-medium');
+    else scoreDisplayEl.classList.add('score-high');
+    
     scoreDisplayEl.textContent = `${score}%`;
+}
+
+// --- NEW: Fetch "Better" Alternatives ---
+function fetchAlternatives(categoryTag) {
+    if (!categoryTag) return;
+
+    // Search for products in the SAME category but with Nutri-Score 'a' or 'b'
+    const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&nutrition_grades_tags=a,b&sort_by=unique_scans_n&page_size=3&fields=product_name,code,image_front_small_url,nutrition_grades_tags`;
+
+    console.log(`Searching alternatives for category: ${categoryTag}`);
+
+    fetch(searchUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.products && data.products.length > 0) {
+                alternativesContainer.innerHTML = ""; // Clear placeholders
+                
+                data.products.forEach(product => {
+                    // Create HTML for each alternative card
+                    const card = document.createElement('div');
+                    card.className = 'alt-card';
+                    card.innerHTML = `
+                        <img src="${product.image_front_small_url || 'https://via.placeholder.com/50'}" class="alt-image" alt="${product.product_name}">
+                        <div class="alt-info">
+                            <div class="alt-name">${product.product_name || 'Unknown Product'}</div>
+                            <div class="alt-score">Nutri-Score: ${product.nutrition_grades_tags ? product.nutrition_grades_tags[0].toUpperCase() : '?'}</div>
+                        </div>
+                    `;
+                    alternativesContainer.appendChild(card);
+                });
+                
+                alternativesSection.classList.remove('hidden'); // Show the section
+            }
+        })
+        .catch(err => console.error("Error fetching alternatives:", err));
 }
 
 function fetchProductData(barcode) {
@@ -150,6 +164,15 @@ function fetchProductData(barcode) {
                 productNameEl.textContent = product.product_name || 'Name not found';
                 ingredientsTextEl.textContent = product.ingredients_text || 'Ingredients not available.';
                 updateScoreUI(processedScore);
+
+                // --- TRIGGER ALTERNATIVES SEARCH ---
+                // We use the first category tag found to find similar items
+                if (product.categories_tags && product.categories_tags.length > 0) {
+                    // Get the main category (often the last one is most specific)
+                    const category = product.categories_tags[product.categories_tags.length - 1];
+                    fetchAlternatives(category);
+                }
+
             } else {
                 alert("Product not found. Please try another.");
                 showScannerView();
