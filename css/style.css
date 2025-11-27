@@ -74,20 +74,31 @@ main {
     left: 0;
 }
 
-/* Add these new classes for score colors */
-.score-low {
+#score-display {
+    width: 100px;
+    height: 100px;
+    margin: 20px auto;
+    background-color: #ccc; /* CHANGE: Set a neutral grey as default */
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+/* THE FIX: Use specific selectors (#id.class) to override the default.
+*/
+
+#score-display.score-low {
     background-color: #4CAF50; /* Green */
 }
 
-.score-medium {
+#score-display.score-medium {
     background-color: #ffc107; /* Yellow */
 }
 
-.score-high {
+#score-display.score-high {
     background-color: #e74c3c; /* Red */
-}
-
-/* This is the class we use to hide things */
-.hidden {
-    display: none;
 }
