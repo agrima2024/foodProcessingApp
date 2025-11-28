@@ -22,14 +22,21 @@ const quaggaConfig = {
         type: "LiveStream",
         target: scannerContainer,
         constraints: {
-            width: 480,
-            height: 480,
-            facingMode: "environment"
+            width: { min: 640, ideal: 1280, max: 1920 }, // Allow higher res for better focus
+            height: { min: 480, ideal: 720, max: 1080 },
+            facingMode: "environment" // Use the rear camera
         },
     },
+    // TUNING: These settings help finding barcodes in messy images
+    locator: {
+        patchSize: "medium",
+        halfSample: true
+    },
+    numOfWorkers: 2, // Use more processing power
     decoder: {
-        readers: ["ean_reader", "upc_reader", "upc_e_reader"]
-    }
+        readers: ["ean_reader", "upc_reader", "upc_e_reader"] // standard retail codes
+    },
+    locate: true // Help find the barcode box
 };
 
 // --- VIEW LOGIC ---
@@ -38,24 +45,28 @@ function showScannerView() {
     isProcessing = false;
     resultsSection.classList.add('hidden');
     scannerSection.classList.remove('hidden');
+    
     loadingMessage.classList.remove('hidden');
+    scannerContainer.classList.remove('hidden');
+    
     startQuagga();
 }
 
 function showResultsView() {
+    Quagga.stop(); // Stop camera immediately
     scannerSection.classList.add('hidden');
     resultsSection.classList.remove('hidden');
-    Quagga.stop();
 }
 
 // --- SCANNER LOGIC ---
 
 function startQuagga() {
+    // Wait for DOM to render
     setTimeout(() => {
         Quagga.init(quaggaConfig, function(err) {
             if (err) {
                 console.error('Quagga init failed:', err);
-                loadingMessage.textContent = 'Camera Error: Please allow permissions.';
+                loadingMessage.textContent = 'Camera Error. Please ensure you are on HTTPS and allowed permissions.';
                 return;
             }
             console.log("Quagga ready.");
@@ -66,20 +77,25 @@ function startQuagga() {
 }
 
 Quagga.onDetected(function(result) {
+    // Prevent double-scanning
     if (isProcessing) return;
+
     const barcode = result.codeResult.code;
     
-    if (barcode) {
+    // Ensure we are in the scanner view before accepting a code
+    if (barcode && !scannerSection.classList.contains('hidden')) {
         console.log(`Barcode found: ${barcode}`);
         isProcessing = true;
+        
         showResultsView();
         
         // Reset UI
         productNameEl.textContent = "Loading...";
         ingredientsTextEl.textContent = "Fetching details...";
+        ingredientsTextEl.style.color = "#444"; 
         alternativesContainer.innerHTML = "";
         alternativesSection.classList.add('hidden');
-        updateScoreUI(null); // Reset to Grey
+        updateScoreUI(0);
         
         fetchProductData(barcode);
     }
@@ -91,10 +107,9 @@ scanAgainBtn.addEventListener('click', showScannerView);
 // --- SCORING LOGIC ---
 
 function calculateProcessedScore(product) {
-    // CRITICAL FIX: Check if data exists first!
-    // If we have no NOVA group AND no ingredients text, we cannot score this product.
+    // Check if critical data is missing
     if (!product.nova_group && !product.ingredients_text) {
-        return null; // Return null to signal "Unknown"
+        return null; // Unknown
     }
 
     let score = 0;
@@ -105,16 +120,21 @@ function calculateProcessedScore(product) {
     else if (novaGroup === 2) score = 20;
     else if (novaGroup === 3) score = 40;
     else if (novaGroup === 4) score = 60;
-    else score = 10; // Default if NOVA is missing but ingredients exist
+    else score = 10; // Default if NOVA missing but ingredients exist
 
-    // Ingredients
-    const ingredients = (product.ingredients_text_with_allergens || "").toLowerCase();
+    // Ingredient Analysis
+    // We check multiple fields to find the ingredients
+    const text = product.ingredients_text_with_allergens || product.ingredients_text_en || product.ingredients_text || "";
+    const ingredients = text.toLowerCase();
+    
     if (ingredients.includes('corn syrup')) score += 10;
     if (ingredients.includes('artificial flavor')) score += 5;
     if (ingredients.includes('artificial color')) score += 5;
+    if (ingredients.includes('red 40') || ingredients.includes('yellow 5') || ingredients.includes('blue 1')) score += 5;
     if (ingredients.includes('hydrogenated')) score += 10;
+    if (ingredients.includes('nitrite') || ingredients.includes('nitrate')) score += 7;
 
-    // Nutriments
+    // Nutritional Analysis
     const nutriments = product.nutriments || {};
     if ((nutriments.sugars_100g || 0) > 15) score += 5;
     if ((nutriments.sodium_100g || 0) > 0.6) score += 5;
@@ -124,14 +144,11 @@ function calculateProcessedScore(product) {
 }
 
 function updateScoreUI(score) {
-    // Remove all color classes to reset
     scoreDisplayEl.classList.remove('score-low', 'score-medium', 'score-high');
     
-    // HANDLE NULL (Missing Data)
     if (score === null) {
         scoreDisplayEl.textContent = "?";
-        // It will stay the default grey color defined in CSS
-        return;
+        return; // Stays grey
     }
 
     if (score < 40) scoreDisplayEl.classList.add('score-low');
@@ -143,7 +160,8 @@ function updateScoreUI(score) {
 
 // --- ALTERNATIVES SEARCH ---
 
-function fetchSimilarProducts(categoryTag, currentNova) {
+function fetchSimilarProducts(categoryTag) {
+    // Search for healthier items (NOVA 1, 2, 3) in same category
     const searchUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${categoryTag}&nova_groups=1,2,3&sort_by=unique_scans_n&page_size=3&fields=product_name,image_front_small_url,nova_group,nutrition_grades_tags`;
 
     fetch(searchUrl)
@@ -151,6 +169,12 @@ function fetchSimilarProducts(categoryTag, currentNova) {
         .then(data => {
             if (data.products && data.products.length > 0) {
                 alternativesContainer.innerHTML = "";
+                
+                // Add header back if we cleared it
+                const header = document.createElement('h3');
+                header.textContent = "Healthier Alternatives";
+                alternativesContainer.appendChild(header);
+
                 data.products.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'alt-card';
@@ -172,11 +196,11 @@ function fetchSimilarProducts(categoryTag, currentNova) {
                 alternativesSection.classList.remove('hidden');
             }
         })
-        .catch(err => console.error("Error fetching alternatives:", err));
+        .catch(console.error);
 }
 
 
-// --- DATA LOGIC ---
+// --- MAIN DATA FETCH ---
 
 function fetchProductData(barcode) {
     const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}`;
@@ -187,29 +211,41 @@ function fetchProductData(barcode) {
             if (data.status === 1 && data.product) {
                 const product = data.product;
                 
-                // 1. Calculate Score (Now handles null)
+                // 1. Calculate Score
                 const processedScore = calculateProcessedScore(product);
 
-                // 2. Update Text
+                // 2. Update UI Text
                 productNameEl.textContent = product.product_name || 'Name not found';
                 
-                // If ingredients are missing, tell the user explicitly
-                if (!product.ingredients_text) {
-                    ingredientsTextEl.textContent = "⚠️ Ingredient data missing from database.";
-                    ingredientsTextEl.style.color = "#e74c3c"; // Make warning red
+                // Try harder to find ingredients text
+                const ingText = product.ingredients_text_with_allergens || product.ingredients_text_en || product.ingredients_text;
+                
+                if (ingText) {
+                    ingredientsTextEl.textContent = ingText;
                 } else {
-                    ingredientsTextEl.textContent = product.ingredients_text;
-                    ingredientsTextEl.style.color = "#444"; // Reset color
+                    ingredientsTextEl.textContent = "⚠️ Ingredient list missing from database.";
+                    ingredientsTextEl.style.color = "#e74c3c";
                 }
 
                 // 3. Update Score Bubble
                 updateScoreUI(processedScore);
 
-                // 4. Trigger Search (Only if we have a category)
-                if (product.categories_tags && product.categories_tags.length > 0) {
+                // 4. DECISION LOGIC: Great Choice OR Alternatives?
+                
+                if (processedScore !== null && processedScore < 40) {
+                    // CASE A: It's Green (< 40%). Show "Great Choice".
+                    alternativesSection.classList.remove('hidden');
+                    alternativesContainer.innerHTML = `
+                        <div style="background-color: #e8f5e9; padding: 20px; border-radius: 8px; border: 1px solid #4CAF50;">
+                            <h3 style="color: #4CAF50; margin: 0; font-size: 1.2em;">Great Choice!</h3>
+                            <p style="margin: 5px 0 0 0; color: #2e7d32;">This product has a low processing score.</p>
+                        </div>
+                    `;
+                } 
+                else if (product.categories_tags && product.categories_tags.length > 0) {
+                    // CASE B: It's Yellow or Red. Search for alternatives.
                     const category = product.categories_tags[product.categories_tags.length - 1];
-                    // Even if the current product has no data, we can still suggest popular items in that category
-                    fetchSimilarProducts(category, product.nova_group);
+                    fetchSimilarProducts(category);
                 }
 
             } else {
@@ -221,6 +257,7 @@ function fetchProductData(barcode) {
         .catch(error => {
             console.error('Error:', error);
             productNameEl.textContent = "Network Error";
+            ingredientsTextEl.textContent = "Please check internet connection.";
         });
 }
 

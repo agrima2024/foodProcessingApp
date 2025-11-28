@@ -200,3 +200,22 @@ main {
 .hidden {
     display: none !important;
 }
+
+/* Ensure the Great Choice box looks good */
+#alternatives-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%; /* Ensure it fills width */
+}
+
+/* Fix for the Alternatives Header */
+#alternatives-section h3 {
+    /* The JS might inject its own header, so we can relax this style or remove it if it doubles up */
+    margin-bottom: 10px;
+    font-size: 1em;
+    color: #4CAF50;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
